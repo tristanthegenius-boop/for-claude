@@ -108,7 +108,7 @@ def effective_bands(state: dict, ch: int, pov: str | None) -> dict:
     bands = copy.deepcopy(state.get("voice_bands", DEFAULT_VOICE_BANDS))
     if pov:
         for name, b in (state.get("voice_bands_by_pov") or {}).items():
-            if name.lower() == pov.lower():
+            if name.lower() in pov.lower().split() or name.lower() == pov.lower():
                 bands.update(b)
     bands.update((state.get("chapter_overrides") or {}).get(str(ch), {}))
     return bands
