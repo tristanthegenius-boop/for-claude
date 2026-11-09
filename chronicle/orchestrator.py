@@ -109,6 +109,10 @@ class Orchestrator:
         rep, rv = None, {}
         for attempt in range(1, int(cfg["max_attempts"]) + 1):
             dp = self.pj.draft_path(ch, attempt)
+            n = attempt
+            while dp.exists():  # never overwrite drafts from an earlier run
+                n += 1
+                dp = self.pj.draft_path(ch, n)
             dp.parent.mkdir(parents=True, exist_ok=True)
             dp.write_text(raw, encoding="utf-8")
             rep = run_all(bible, state, ch, raw)
