@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chronicle-runtime"
+version = "1.0.0"
+description = "Runtime that executes the Chronicle Engine spec with any OpenRouter model"
+requires-python = ">=3.10"
+dependencies = ["requests>=2.28"]
+
+[project.optional-dependencies]
+docx = ["python-docx>=1.0"]
+test = ["pytest>=7"]
+
+[project.scripts]
+chronicle = "chronicle.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["chronicle*"]

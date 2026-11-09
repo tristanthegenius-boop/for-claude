@@ -1,0 +1,6 @@
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.env
+# Your engine files, bibles and manuscripts live here and are never committed.
+projects/

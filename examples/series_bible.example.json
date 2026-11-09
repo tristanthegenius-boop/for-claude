@@ -1,0 +1,37 @@
+{
+ "schema": "series-bible/1.2",
+ "emitted_by": "example",
+ "series": {
+  "title": "The Lantern Coast",
+  "genre": "Cozy Mystery",
+  "content_care_LOCKED": ["No on-page violence beyond aftermath.", "Romance stays closed-door."],
+  "series_question": "Who keeps relighting the dead lighthouse?",
+  "reveal_schedule": {
+   "already_known": [],
+   "locks": [
+    {"id": "L1_keeper_alive", "reveal": "The old keeper never drowned.", "earliest_book": 2, "earliest_chapter": 10, "probe": "keeper is alive"}
+   ]
+  }
+ },
+ "books": {
+  "1": {
+   "title": "Salt and Signal",
+   "focal": ["Wren Hale"],
+   "pov_tense": "first-person past",
+   "length_target_words": 60000,
+   "chapter_count": 20,
+   "book_job": "Wren comes home and finds the light burning.",
+   "chapter_spine_beatmap": [
+    {"pct": 5, "chapters_approx": [1, 2], "intent": "Wren arrives; the light is on.", "load_bearing": true, "uf": ["UF-01"]},
+    {"pct": 50, "chapters_approx": [3, 17], "intent": "Investigation and complications.", "load_bearing": false, "uf": []},
+    {"pct": 95, "chapters_approx": [18, 20], "intent": "Solution and homecoming.", "load_bearing": true, "uf": ["UF-02"]}
+   ]
+  },
+  "2": {
+   "title": "Book Two",
+   "chapter_count": 20,
+   "chapter_spine_beatmap": [{"pct": 50, "chapters_approx": [1, 20], "intent": "TBD", "load_bearing": false}]
+  }
+ },
+ "manifest": {"active_book": 1, "total_books": 2, "lane": "COZY-MYSTERY", "conflict_policy": "manuscript_wins_flag"}
+}
