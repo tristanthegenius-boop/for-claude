@@ -101,8 +101,9 @@ def _orch(a):
     from .llm import OpenRouter
     from .orchestrator import Orchestrator
 
+    pj = _pj(a)  # loads <project>/.env before the client reads OPENROUTER_API_KEY
     llm = OpenRouter()
-    return Orchestrator(_pj(a), llm), llm
+    return Orchestrator(pj, llm), llm
 
 
 def cmd_write(a):
