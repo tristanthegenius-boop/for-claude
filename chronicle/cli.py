@@ -108,7 +108,8 @@ def _orch(a):
 
 def cmd_write(a):
     orch, llm = _orch(a)
-    r = orch.write_chapter(a.chapter)
+    start = Path(a.from_draft).read_text(encoding="utf-8") if a.from_draft else None
+    r = orch.write_chapter(a.chapter, start)
     print(f"\n{r.status} after {r.attempts} attempt(s). usage: {llm.usage}")
     sys.exit(0 if r.status == "committed" else 1)
 
@@ -248,6 +249,7 @@ def main(argv=None):
 
     s = sub.add_parser("write", help="draft, gate, revise and commit one chapter")
     s.add_argument("chapter", type=int)
+    s.add_argument("--from-draft", help="start the loop from an existing draft instead of drafting fresh")
     s.set_defaults(fn=cmd_write)
 
     s = sub.add_parser("run", help="write chapters in sequence until done, a breakpoint, or a failure")
@@ -275,7 +277,15 @@ def main(argv=None):
     a = ap.parse_args(argv)
     try:
         a.fn(a)
-    except IntakeError as e:
+    except Exception as e:  # noqa: BLE001
+        from .llm import LLMError
+        from .orchestrator import ReviewError
+
+        if isinstance(e, (LLMError, ReviewError)):
+            print(f"\n*** STOPPED: {e}")
+            sys.exit(3)
+        if not isinstance(e, IntakeError):
+            raise
         print("\n*** SERIES-BIBLE INTAKE HARD STOP ***")
         print(e)
         print("No chapter may be written or validated without intaking the series bible. Refusing to run.")

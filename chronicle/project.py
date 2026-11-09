@@ -25,6 +25,8 @@ DEFAULT_CONFIG = {
     "craft_passes": 1,
     "min_craft_score": 8,
     "breakpoints": [],
+    # OpenRouter reasoning budget per role (thinking tokens count against max_tokens).
+    "reasoning": {"draft": None, "review": {"max_tokens": 4000}, "summary": {"max_tokens": 1024}},
 }
 
 
@@ -71,8 +73,9 @@ class Project:
         if self.config_path.exists():
             user = json.loads(self.config_path.read_text())
             models = {**cfg["models"], **(user.get("models") or {})}
+            reasoning = {**cfg["reasoning"], **(user.get("reasoning") or {})}
             cfg.update(user)
-            cfg["models"] = models
+            cfg["models"], cfg["reasoning"] = models, reasoning
         return cfg
 
     def save_config(self, cfg: dict) -> None:

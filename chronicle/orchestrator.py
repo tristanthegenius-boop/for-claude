@@ -13,6 +13,10 @@ from .state import commit
 from .textstats import words
 
 
+class ReviewError(Exception):
+    pass
+
+
 class ChatModel(Protocol):
     def chat(self, model: str, system: str, user: str, **kw) -> str: ...
 
@@ -54,6 +58,8 @@ class Orchestrator:
         cfg = self.pj.config
         kw.setdefault("temperature", cfg["temperature"] if role == "draft" else 0.3)
         kw.setdefault("max_tokens", cfg["max_tokens"])
+        if cfg.get("reasoning", {}).get(role):
+            kw.setdefault("reasoning", cfg["reasoning"][role])
         return self.llm.chat(self.pj.model(role), self.system, user, **kw)
 
     def _prev_tail(self, ch: int) -> str | None:
@@ -64,11 +70,18 @@ class Orchestrator:
         return " ".join(w[-600:])
 
     def review(self, bible, state, ch, raw) -> tuple[dict, list[str]]:
-        txt = self._chat("review", prompts.review_prompt(bible, state, ch, raw), json_mode=True, max_tokens=4000)
-        try:
-            rv = parse_json(txt)
-        except Exception:  # noqa: BLE001
-            return {}, ["review: reviewer returned unparseable JSON (re-run review)"]
+        """Reviewer failures are retried here; they never count as prose failures."""
+        rv, err = None, None
+        for _ in range(3):
+            txt = self._chat("review", prompts.review_prompt(bible, state, ch, raw), json_mode=True)
+            try:
+                rv = parse_json(txt)
+                break
+            except Exception as e:  # noqa: BLE001
+                err = e
+                self.pj.log_event({"chapter": ch, "review_unparseable": txt[:2000]})
+        if rv is None:
+            raise ReviewError(f"reviewer returned unparseable JSON 3 times: {err}")
         hard = []
         verdict = str(rv.get("bible_verdict", "")).lower()
         if verdict not in ("matches", "deviation"):
@@ -80,7 +93,7 @@ class Orchestrator:
             hard.append(f"§23 UF_GATE: zero UF credited (planned {beat['uf']}); zombie scene, seat a UF")
         return rv, hard
 
-    def write_chapter(self, ch: int) -> ChapterResult:
+    def write_chapter(self, ch: int, start_draft: str | None = None) -> ChapterResult:
         cfg = self.pj.config
         bible = self.pj.bible()  # §25 step 0, every pass
         state = self.pj.state()
@@ -88,7 +101,10 @@ class Orchestrator:
         beat = bible.beat(ch) or {}
         self.say(f"ch{ch} intent: {beat.get('intent', '(no beat)')[:160]}")
 
-        raw = clean_output(self._chat("draft", prompts.draft_prompt(bible, state, ch, self._prev_tail(ch))))
+        if start_draft:
+            raw = clean_output(start_draft)
+        else:
+            raw = clean_output(self._chat("draft", prompts.draft_prompt(bible, state, ch, self._prev_tail(ch))))
         craft_left = int(cfg.get("craft_passes", 0))
         rep, rv = None, {}
         for attempt in range(1, int(cfg["max_attempts"]) + 1):
@@ -121,7 +137,7 @@ class Orchestrator:
     def _commit(self, bible, state, ch, raw, rep, rv, attempt) -> ChapterResult:
         tok = self.pj.record_pass(ch, raw, True)
         hdr = rep.meta.get("header", {})
-        summary = self._chat("summary", prompts.summary_prompt(ch, raw), max_tokens=600).strip()
+        summary = self._chat("summary", prompts.summary_prompt(ch, raw), max_tokens=4000).strip()
         fired = sorted(set(rep.meta.get("locks_fired_open", []) + list(rv.get("reveals_fired") or [])))
         prof = commit(state, ch, raw, tok, title=hdr.get("title", ""), pov=hdr.get("pov", ""),
                       fired=fired, ufs=list(rv.get("ufs_credited") or []), summary=summary)

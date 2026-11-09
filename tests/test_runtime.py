@@ -243,3 +243,25 @@ def test_drift_verdict_blocks_commit(tmp_path):
     r = Orchestrator(pj, Drifter(), say=lambda s: None).write_chapter(1)
     assert r.status == "needs_author"
     assert pj.state()["committed_chapters"] == []
+
+
+def test_bad_review_json_is_retried_not_treated_as_prose_failure(tmp_path):
+    class FlakyReviewer(FakeLLM):
+        n = 0
+
+        def chat(self, model, system, user, **kw):
+            if "acquisitions editor" in user:
+                FlakyReviewer.n += 1
+                if FlakyReviewer.n == 1:
+                    return "not json"
+            return super().chat(model, system, user, **kw)
+
+    (tmp_path / "engine.txt").write_text("ENGINE")
+    (tmp_path / "series_bible.json").write_text(EXAMPLE.read_text())
+    pj = Project(tmp_path)
+    pj.save_config({"models": {"draft": "m"}})
+    pj.save_state(init_state(pj.bible()))
+    llm = FlakyReviewer()
+    r = Orchestrator(pj, llm, say=lambda s: None).write_chapter(1, start_draft=chapter(1))
+    assert r.status == "committed" and r.attempts == 1
+    assert not any("rejected this draft" in c for c in llm.calls)

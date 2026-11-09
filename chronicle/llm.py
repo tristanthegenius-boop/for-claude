@@ -59,6 +59,7 @@ class OpenRouter:
         temperature: float = 0.8,
         max_tokens: int = 12000,
         json_mode: bool = False,
+        reasoning: dict | None = None,
         extra: dict | None = None,
     ) -> str:
         sys_content: object = system
@@ -77,6 +78,8 @@ class OpenRouter:
         }
         if json_mode:
             body["response_format"] = {"type": "json_object"}
+        if reasoning:
+            body["reasoning"] = reasoning
         body.update(extra or {})
         delay = 2.0
         last = None
@@ -92,9 +95,15 @@ class OpenRouter:
                         last = json.dumps(data["error"])[:500]
                     else:
                         self.usage.add(data.get("usage"))
-                        content = data["choices"][0]["message"].get("content") or ""
+                        choice = data["choices"][0]
+                        content = choice["message"].get("content") or ""
                         if content.strip():
                             return content
+                        if choice.get("finish_reason") == "length":
+                            raise LLMError(
+                                f"{model}: output budget ({max_tokens} tokens) used up before any answer "
+                                "(reasoning tokens count against it); raise max_tokens or lower the reasoning budget"
+                            )
                         last = "empty completion"
                 elif r.status_code in (408, 429, 500, 502, 503, 504):
                     last = f"HTTP {r.status_code}: {r.text[:300]}"
